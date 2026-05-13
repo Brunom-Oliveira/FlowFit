@@ -1,16 +1,76 @@
 import { z } from 'zod';
 
+// Expressão regular avançada para senhas corporativas seguras (mínimo 8 caracteres, 1 maiúscula, 1 minúscula, 1 número, 1 caractere especial)
+const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+
 export const loginSchema = z.object({
   email: z
     .string()
     .trim()
     .toLowerCase()
-    .email('E-mail inválido')
-    .max(254, 'E-mail muito longo'),
+    .email('E-mail com formato inválido')
+    .max(254, 'E-mail excede o limite de caracteres permitidos')
+    .transform((v) => v.replace(/<[^>]*>/g, '')), // Prevenção básica XSS
   password: z
     .string()
-    .min(1, 'Senha é obrigatória')
-    .max(128, 'Senha muito longa'),
+    .min(1, 'A senha é obrigatória')
+    .max(128, 'Comprimento de senha inválido'),
+});
+
+export const registerSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(3, 'O nome deve ter no mínimo 3 caracteres')
+    .max(120, 'O nome excede o limite de caracteres')
+    .transform((v) => v.replace(/<[^>]*>/g, '')), // Sanitização estrita
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email('Forneça um e-mail válido')
+    .max(254, 'E-mail excede o limite permitido')
+    .transform((v) => v.replace(/<[^>]*>/g, '')),
+  password: z
+    .string()
+    .min(8, 'A senha deve ter no mínimo 8 caracteres')
+    .max(128, 'A senha excede o limite máximo permitido')
+    .refine((val) => passwordRegex.test(val), {
+      message: 'A senha deve conter ao menos 1 letra maiúscula, 1 minúscula, 1 número e 1 caractere especial (@$!%*?&)',
+    }),
+  acceptTerms: z
+    .boolean()
+    .refine((val) => val === true, {
+      message: 'Você deve aceitar os Termos de Uso e a Política de Privacidade (LGPD)',
+    }),
+});
+
+export const passwordResetRequestSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email('E-mail com formato inválido')
+    .max(254, 'E-mail excede o limite de caracteres'),
+});
+
+export const passwordResetConfirmSchema = z.object({
+  token: z.string().min(10, 'Token de redefinição inválido'),
+  newPassword: z
+    .string()
+    .min(8, 'A nova senha deve ter no mínimo 8 caracteres')
+    .max(128, 'A senha excede o limite de caracteres')
+    .refine((val) => passwordRegex.test(val), {
+      message: 'A senha deve conter ao menos 1 letra maiúscula, 1 minúscula, 1 número e 1 caractere especial',
+    }),
+});
+
+export const mfaVerifySchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .length(6, 'O código de autenticação MFA deve conter exatamente 6 dígitos')
+    .regex(/^\d+$/, 'O código MFA deve conter apenas números'),
 });
 
 export const checkoutItemSchema = z.object({
@@ -92,6 +152,7 @@ export const productUpdateSchema = productSchema.extend({
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
+export type RegisterInput = z.infer<typeof registerSchema>;
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 export type CheckoutItemInput = z.infer<typeof checkoutItemSchema>;
 export type ProductInput = z.infer<typeof productSchema>;

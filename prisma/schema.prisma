@@ -9,22 +9,112 @@ datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id            String    @id @default(uuid())
-  email         String    @unique
-  passwordHash  String
-  name          String
-  role          Role      @default(CUSTOMER)
-  orders        Order[]
-  wishlist      Product[] @relation("UserWishlist")
-  loyaltyPoints Int       @default(0)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-}
-
 enum Role {
   CUSTOMER
   ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
+enum AuthEventType {
+  LOGIN_SUCCESS
+  LOGIN_FAILURE
+  REGISTER_SUCCESS
+  LOGOUT
+  PASSWORD_RESET_REQUEST
+  PASSWORD_RESET_SUCCESS
+  TOKEN_REFRESH
+  MFA_VERIFY_SUCCESS
+  MFA_VERIFY_FAILURE
+}
+
+model User {
+  id                 String            @id @default(uuid())
+  email              String            @unique
+  passwordHash       String
+  name               String
+  role               Role              @default(CUSTOMER)
+  status             UserStatus        @default(ACTIVE)
+  
+  // Segurança Corporativa & LGPD
+  isMfaEnabled       Boolean           @default(false)
+  mfaSecret          String?
+  passwordResetToken String?           @unique
+  passwordResetExpires DateTime?
+  lastLoginAt        DateTime?
+  failedLoginAttempts Int              @default(0)
+  lockoutUntil       DateTime?
+  termsAcceptedAt    DateTime?         @default(now()) // LGPD Consent
+  
+  // Relações eSessões
+  sessions           Session[]
+  trustedDevices     TrustedDevice[]
+  authLogs           AuthLog[]
+  orders             Order[]
+  wishlist           Product[]         @relation("UserWishlist")
+  loyaltyPoints      Int               @default(0)
+  
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+}
+
+model Session {
+  id               String    @id @default(uuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokenHash String    @unique
+  isRevoked        Boolean   @default(false)
+  ipAddress        String?
+  userAgent        String?
+  deviceFingerprint String?
+  expiresAt        DateTime
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([refreshTokenHash])
+  @@index([expiresAt])
+}
+
+model TrustedDevice {
+  id                String   @id @default(uuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceFingerprint String
+  deviceName        String?  // Ex: "iPhone 15 Pro", "Chrome on Windows"
+  browserName       String?
+  osName            String?
+  isTrusted         Boolean  @default(true)
+  lastUsedAt        DateTime @default(now())
+  createdAt         DateTime @default(now())
+
+  @@unique([userId, deviceFingerprint])
+  @@index([userId])
+}
+
+model AuthLog {
+  id             String        @id @default(uuid())
+  userId         String?
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  eventType      AuthEventType
+  ipAddress      String?
+  userAgent      String?
+  isSuccess      Boolean       @default(true)
+  failureReason  String?
+  createdAt      DateTime      @default(now())
+
+  @@index([userId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@index([ipAddress])
 }
 
 model Category {
@@ -37,18 +127,18 @@ model Category {
 }
 
 model Product {
-  id          String    @id @default(uuid())
-  slug        String    @unique
-  name        String
-  description String
-  price       Decimal   @db.Decimal(10, 2)
-  categoryId  String
-  category    Category  @relation(fields: [categoryId], references: [id])
-  variants    Variant[]
-  images      Image[]
-  wishlistedBy User[]   @relation("UserWishlist")
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id           String    @id @default(uuid())
+  slug         String    @unique
+  name         String
+  description  String
+  price        Decimal   @db.Decimal(10, 2)
+  categoryId   String
+  category     Category  @relation(fields: [categoryId], references: [id])
+  variants     Variant[]
+  images       Image[]
+  wishlistedBy User[]    @relation("UserWishlist")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
 model Image {
@@ -59,13 +149,13 @@ model Image {
 }
 
 model Variant {
-  id        String    @id @default(uuid())
-  productId String
-  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
-  size      Size
-  color     String
-  stock     Int       @default(0)
-  sku       String    @unique
+  id         String      @id @default(uuid())
+  productId  String
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  size       Size
+  color      String
+  stock      Int         @default(0)
+  sku        String      @unique
   orderItems OrderItem[]
 }
 

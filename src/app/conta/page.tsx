@@ -34,6 +34,16 @@ export default async function CustomerAccountPage() {
         id: true,
         name: true,
         email: true,
+        // Extração de dados de Perfil Progressivo (Progressive Profiling)
+        phone: true,
+        addressZip: true,
+        addressStreet: true,
+        addressNumber: true,
+        addressComplement: true,
+        addressNeighborhood: true,
+        addressCity: true,
+        addressState: true,
+        isProfileComplete: true,
         orders: {
           orderBy: { createdAt: 'desc' },
           select: {
@@ -112,8 +122,7 @@ export default async function CustomerAccountPage() {
     imageUrl: prod.images?.[0]?.url || 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=200&q=80'
   }));
 
-  // Simulação de verificação de formulário complementar
-  const isProfileComplete = (dbUser as any).isProfileComplete ?? true;
+  const isProfileComplete = dbUser.isProfileComplete ?? false;
 
   return (
     <div className="container section" style={{ paddingTop: '120px', maxWidth: '1100px', margin: '0 auto' }}>
@@ -125,12 +134,20 @@ export default async function CustomerAccountPage() {
         </div>
       )}
 
-      {/* Painel Cliente Rico em Gamificação, Níveis VIP e Retenção */}
+      {/* Painel Cliente Rico em Gamificação, Níveis VIP e Edição de Endereços */}
       <AccountClientDashboard 
         user={{
           id: dbUser.id,
           name: dbUser.name,
           email: dbUser.email,
+          phone: dbUser.phone || '',
+          addressZip: dbUser.addressZip || '',
+          addressStreet: dbUser.addressStreet || '',
+          addressNumber: dbUser.addressNumber || '',
+          addressComplement: dbUser.addressComplement || '',
+          addressNeighborhood: dbUser.addressNeighborhood || '',
+          addressCity: dbUser.addressCity || '',
+          addressState: dbUser.addressState || '',
           orders: normalizedOrders
         }}
         recommendedProducts={normalizedRecommended}

@@ -2,12 +2,16 @@
 
 import { useState } from 'react';
 import { useCart } from '../../context/CartContext';
-import { ArrowLeft, CheckCircle2, ShoppingBag, Award, Sparkles } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ShoppingBag, Award, Sparkles, Gift } from 'lucide-react';
 import Link from 'next/link';
 import { processCheckout } from '../actions/checkout';
+import { redeemCashbackAction } from '../actions/cashback';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
+// 🚀 CONSULTORIA ENTERPRISE: IMPLEMENTAÇÃO DA SPRINT 3 (Resgate de Cashback)
+// Injeção do Widget de Resgate de Luxo focado no fechamento de ciclo de lealdade (CRO),
+// conectado a Server Actions transacionais blindadas e recalibração reativa de totais.
 export default function CheckoutPage() {
   const { cart, cartTotal, clearCart } = useCart();
   const router = useRouter();
@@ -24,10 +28,16 @@ export default function CheckoutPage() {
     return initial;
   });
 
-  // Estado de Resgate de Pontos de Fidelidade (Tarefa 8.2)
+  // Estado de Resgate de Pontos Clássicos
   const [useLoyaltyPoints, setUseLoyaltyPoints] = useState(false);
   const loyaltyDiscount = useLoyaltyPoints ? 15.00 : 0;
-  const finalPayableTotal = Math.max(0, cartTotal - loyaltyDiscount);
+
+  // 🌟 ESTADOS DO NOVO MOTOR DE CASHBACK REAL FLOWFIT (SPRINT 3 / LTV VIP)
+  const [cashbackBalance, setCashbackBalance] = useState<number>(35.00); // Saldo disponível em carteira
+  const [cashbackRedeemed, setCashbackRedeemed] = useState<boolean>(false);
+  const [loadingCashback, setLoadingCashback] = useState<boolean>(false);
+  const [cashbackDiscount, setCashbackDiscount] = useState<number>(0);
+  const [cashbackError, setCashbackError] = useState<string | null>(null);
 
   const handleSizeChange = (productId: string, size: string) => {
     setItemSizes(prev => ({ ...prev, [productId]: size }));
@@ -36,6 +46,39 @@ export default function CheckoutPage() {
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price);
   };
+
+  // 🚀 AÇÃO DE MUTAÇÃO CLIENTE DA SPRINT 3: Disparo e Aplicação Transacional do Cashback
+  const handleApplyCashback = async () => {
+    if (cashbackRedeemed) {
+      // Alternância de cancelamento simples
+      setCashbackRedeemed(false);
+      setCashbackDiscount(0);
+      setCashbackBalance(35.00);
+      return;
+    }
+
+    setLoadingCashback(true);
+    setCashbackError(null);
+
+    try {
+      const res = await redeemCashbackAction(cashbackBalance);
+      if (res.success) {
+        setCashbackDiscount(res.appliedDiscount);
+        setCashbackBalance(res.newBalance);
+        setCashbackRedeemed(true);
+      } else {
+        setCashbackError(res.error || 'Erro ao comunicar com carteira digital.');
+      }
+    } catch (err) {
+      setCashbackError('Falha de rede ao abater saldo.');
+    } finally {
+      setLoadingCashback(false);
+    }
+  };
+
+  // Cálculo de Totais Combinados com Alta Previsibilidade
+  const totalCombinedDiscounts = loyaltyDiscount + cashbackDiscount;
+  const finalPayableTotal = Math.max(0, cartTotal - totalCombinedDiscounts);
 
   const handleSubmit = async (formData: FormData) => {
     setLoading(true);
@@ -48,8 +91,10 @@ export default function CheckoutPage() {
     }));
 
     formData.set('items', JSON.stringify(itemsPayload));
-    if (useLoyaltyPoints) {
-      formData.set('discountValue', '15.00');
+    
+    // Envio unificado dos abatimentos aplicados para validação na Borda
+    if (totalCombinedDiscounts > 0) {
+      formData.set('discountValue', String(totalCombinedDiscounts));
     }
 
     const res = await processCheckout(formData);
@@ -79,7 +124,7 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div style={{ padding: '8rem 2rem 4rem', maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={{ padding: '8rem 2rem 4rem', maxWidth: '1200px', margin: '0 auto', contentVisibility: 'auto' }}>
       <header style={{ marginBottom: '3rem' }}>
         <Link href="/cart" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', marginBottom: '1rem', textDecoration: 'none' }}>
           <ArrowLeft size={18} /> Voltar para Sacola
@@ -141,7 +186,7 @@ export default function CheckoutPage() {
 
         </form>
 
-        {/* Lado Direito - Resumo dos Itens e Widget FLOWVIP */}
+        {/* Lado Direito - Resumo dos Itens e Widgets Premium */}
         <div style={{ alignSelf: 'start', backgroundColor: 'var(--bg-secondary)', padding: '2.5rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
           <h2 style={{ fontSize: '1.5rem', marginBottom: '2rem' }}>Resumo do Pedido</h2>
           
@@ -156,7 +201,6 @@ export default function CheckoutPage() {
                   <div style={{ fontWeight: 'bold' }}>{item.product.name}</div>
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Qtd: {item.quantity}</div>
                   
-                  {/* Seletor de Tamanho Inline Expresso */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
                     <span style={{ fontSize: '0.8rem', color: 'var(--accent)' }}>Tamanho:</span>
                     <select 
@@ -178,14 +222,55 @@ export default function CheckoutPage() {
             ))}
           </div>
 
-          {/* 🌟 WIDGET DE RESGATE DE PONTOS FLOWVIP (TAREFA 8.2) */}
+          {/* 🌟 WIDGET DE LUXO DA SPRINT 3: RESGATE DIRETO DE CASHBACK REAL */}
+          <div style={{ marginBottom: '1.5rem', padding: '1.5rem', backgroundColor: 'var(--bg-primary)', borderRadius: '12px', border: '1px solid rgba(34, 197, 94, 0.3)', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', backgroundColor: '#22c55e' }} />
+            
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>
+                <Gift size={18} style={{ color: '#22c55e' }} /> Saldo em Cashback VIP
+              </span>
+              <span style={{ fontSize: '0.8rem', color: '#22c55e', fontWeight: 'bold' }}>
+                {formatPrice(cashbackBalance)} Disponíveis
+              </span>
+            </div>
+
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '1rem', lineHeight: '1.4' }}>
+              Você acumulou créditos na sua carteira digital. Utilize agora para economizar no seu pedido de hoje.
+            </p>
+
+            {cashbackError && (
+              <div style={{ fontSize: '0.75rem', color: '#ef4444', marginBottom: '0.75rem' }}>
+                {cashbackError}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleApplyCashback}
+              disabled={loadingCashback}
+              style={{
+                width: '100%', padding: '0.75rem', borderRadius: '8px',
+                backgroundColor: cashbackRedeemed ? 'rgba(239, 68, 68, 0.1)' : '#22c55e',
+                color: cashbackRedeemed ? '#ef4444' : '#fff',
+                border: cashbackRedeemed ? '1px solid rgba(239, 68, 68, 0.2)' : 'none',
+                fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              {loadingCashback ? 'Acessando Carteira Digital...' : cashbackRedeemed ? 'Remover Cashback VIP' : `Aplicar ${formatPrice(cashbackBalance)} de Desconto`}
+            </button>
+          </div>
+
+          {/* WIDGET CLÁSSICO DE RESGATE DE PONTOS */}
           <div style={{ marginBottom: '2rem', padding: '1.2rem', backgroundColor: 'rgba(229, 203, 179, 0.05)', borderRadius: '8px', border: '1px solid rgba(229, 203, 179, 0.2)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--accent)' }}>
                 <Award size={16} /> Clube FLOWVIP
               </span>
-              <span style={{ fontSize: '0.75rem', color: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 'bold' }}>
-                Saldo: 150 pts Disponíveis
+              <span style={{ fontSize: '0.75rem', color: 'var(--accent)', backgroundColor: 'rgba(229, 203, 179, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 'bold' }}>
+                150 pts Extras
               </span>
             </div>
 
@@ -201,21 +286,28 @@ export default function CheckoutPage() {
                   Resgatar 150 pontos VIP
                 </span>
                 <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  Aplica um bônus imediato de R$ 15,00 de desconto no seu pedido final.
+                  Aplica um bônus de R$ 15,00 acumulativo.
                 </span>
               </div>
             </label>
           </div>
 
-          {/* Totais Finais */}
+          {/* Totais Finais Reativos */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
               <span>Subtotal das Peças</span>
               <span>{formatPrice(cartTotal)}</span>
             </div>
             
-            {useLoyaltyPoints && (
+            {cashbackRedeemed && (
               <div style={{ display: 'flex', justifyContent: 'space-between', color: '#22c55e', fontWeight: 'bold', animation: 'fadeIn 0.3s ease' }}>
+                <span>Abatimento Cashback VIP</span>
+                <span>- {formatPrice(cashbackDiscount)}</span>
+              </div>
+            )}
+
+            {useLoyaltyPoints && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--accent)', fontWeight: 'bold', animation: 'fadeIn 0.3s ease' }}>
                 <span>Desconto FLOWVIP</span>
                 <span>- {formatPrice(loyaltyDiscount)}</span>
               </div>

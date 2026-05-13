@@ -5,6 +5,7 @@ import { Providers } from '../components/Providers';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { MessageCircle } from 'lucide-react';
+import { getStoreWhatsAppAction } from './actions/store-config';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -37,28 +38,42 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+// 🚀 CONSULTORIA ENTERPRISE: LAYOUT REATIVO E DINÂMICO (Fase 11 e 12)
+// Consome assincronamente da Vercel Edge o WhatsApp Oficial da Loja configurado
+// em tempo real pela diretoria no painel administrativo, eliminando hardcoded strings.
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Extração assíncrona segura com tipagem preditiva
+  const activeWhatsAppNumber = await getStoreWhatsAppAction();
+  const dynamicWhatsAppLink = `https://wa.me/${activeWhatsAppNumber}`;
+
   return (
     <html lang="pt-BR" className={`${inter.variable} ${montserrat.variable}`}>
       <body className={`${inter.className}`}>
         <Providers>
           <div className="app-container">
             <Header />
+            
             <main className="main-content">
               {children}
             </main>
+            
             <Footer />
 
+            {/* 🌟 BOTÃO FLUTUANTE DE ATENDIMENTO VIP CONECTADO À BORDA */}
             <a
-              href="https://wa.me/5511999999999"
+              href={dynamicWhatsAppLink}
               target="_blank"
               rel="noopener noreferrer"
               className="whatsapp-float"
-              title="Fale conosco no WhatsApp"
+              title="Fale conosco com suporte exclusivo no WhatsApp"
+              style={{
+                boxShadow: '0 8px 24px rgba(34, 197, 94, 0.4)',
+                transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+              }}
             >
               <MessageCircle size={28} />
             </a>

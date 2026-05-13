@@ -3,7 +3,7 @@ import { ProductDetailsClient } from './ProductDetailsClient';
 import Link from 'next/link';
 import { Metadata } from 'next';
 
-export const revalidate = 60; // Revalidate every minute
+export const dynamic = 'force-dynamic';
 
 // 🔍 SEO Dinâmico de Nível Enterprise (Audit Item P0)
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {

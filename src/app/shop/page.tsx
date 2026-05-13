@@ -3,7 +3,7 @@ import { ProductCard } from '../../components/ProductCard';
 import Link from 'next/link';
 import { Metadata } from 'next';
 
-export const revalidate = 60;
+export const dynamic = 'force-dynamic';
 
 // 🔍 Geração Semântica de Metadados Avançados por Categoria (Audit Item P0 / E-commerce SEO)
 export async function generateMetadata({ searchParams }: { searchParams: Promise<{ category?: string }> }): Promise<Metadata> {

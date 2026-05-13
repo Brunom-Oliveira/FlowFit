@@ -4,7 +4,7 @@ import { getProducts } from '../lib/products';
 import { ProductCard } from '../components/ProductCard';
 import Link from 'next/link';
 
-export const revalidate = 60; // Revalidate every minute
+export const dynamic = 'force-dynamic';
 
 export default async function Home() {
   const products = await getProducts();

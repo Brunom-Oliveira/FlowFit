@@ -50,7 +50,19 @@ model User {
   lockoutUntil       DateTime?
   termsAcceptedAt    DateTime?         @default(now()) // LGPD Consent
   
-  // Relações eSessões
+  // Perfilamento Progressivo (Progressive Profiling - Coleta Pós-Cadastro)
+  birthDate          DateTime?
+  phone              String?
+  addressStreet      String?
+  addressNumber      String?
+  addressComplement  String?
+  addressNeighborhood String?
+  addressCity        String?
+  addressState       String?
+  addressZip         String?
+  isProfileComplete  Boolean           @default(false)
+  
+  // Relações e Sessões
   sessions           Session[]
   trustedDevices     TrustedDevice[]
   authLogs           AuthLog[]

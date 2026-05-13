@@ -3,6 +3,7 @@ import { getSession } from '../../lib/session';
 import { redirect } from 'next/navigation';
 import { Package, Award, User, LogOut, ArrowUpRight, CheckCircle2, Truck, ShoppingBag, Sparkles } from 'lucide-react';
 import Link from 'next/link';
+import CompleteProfileForm from './CompleteProfileForm';
 
 export const revalidate = 0;
 
@@ -95,6 +96,10 @@ export default async function CustomerAccountPage() {
           </button>
         </form>
       </header>
+
+      {!(user as any).isProfileComplete && (
+        <CompleteProfileForm userName={user.name} />
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '3rem' }}>
         

@@ -151,9 +151,64 @@ export const productUpdateSchema = productSchema.extend({
   id: z.string().uuid('ID do produto inválido'),
 });
 
+// Esquema Corporativo de Coleta Progressiva de Dados (Progressive Profiling)
+export const completeProfileSchema = z.object({
+  phone: z
+    .string()
+    .trim()
+    .min(10, 'O telefone deve conter o DDD e o número')
+    .max(20, 'Telefone muito longo')
+    .transform((v) => v.replace(/<[^>]*>/g, '')),
+  birthDate: z
+    .string()
+    .refine((val) => !isNaN(Date.parse(val)), { message: 'Data de nascimento com formato inválido' }),
+  addressStreet: z
+    .string()
+    .trim()
+    .min(3, 'O logradouro deve ter no mínimo 3 caracteres')
+    .max(200, 'Logradouro muito longo')
+    .transform((v) => v.replace(/<[^>]*>/g, '')),
+  addressNumber: z
+    .string()
+    .trim()
+    .min(1, 'Número obrigatório')
+    .max(20, 'Número muito longo')
+    .transform((v) => v.replace(/<[^>]*>/g, '')),
+  addressComplement: z
+    .string()
+    .trim()
+    .max(100, 'Complemento excede o limite')
+    .transform((v) => v.replace(/<[^>]*>/g, ''))
+    .optional(),
+  addressNeighborhood: z
+    .string()
+    .trim()
+    .min(2, 'O bairro deve ter no mínimo 2 caracteres')
+    .max(100, 'Bairro muito longo')
+    .transform((v) => v.replace(/<[^>]*>/g, '')),
+  addressCity: z
+    .string()
+    .trim()
+    .min(2, 'A cidade deve ter no mínimo 2 caracteres')
+    .max(100, 'Cidade muito longa')
+    .transform((v) => v.replace(/<[^>]*>/g, '')),
+  addressState: z
+    .string()
+    .trim()
+    .length(2, 'O estado (UF) deve conter exatamente 2 caracteres')
+    .transform((v) => v.toUpperCase().replace(/<[^>]*>/g, '')),
+  addressZip: z
+    .string()
+    .trim()
+    .min(8, 'CEP inválido')
+    .max(10, 'CEP muito longo')
+    .transform((v) => v.replace(/<[^>]*>/g, '')),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 export type CheckoutItemInput = z.infer<typeof checkoutItemSchema>;
 export type ProductInput = z.infer<typeof productSchema>;
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
+export type CompleteProfileInput = z.infer<typeof completeProfileSchema>;

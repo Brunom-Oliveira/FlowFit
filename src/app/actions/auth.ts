@@ -1,8 +1,8 @@
 "use server";
 
 import { prisma } from '../../lib/prisma';
-import { createSession } from '../../lib/session';
-import { loginSchema, registerSchema } from '../../lib/validation';
+import { createSession, getSession } from '../../lib/session';
+import { loginSchema, registerSchema, completeProfileSchema } from '../../lib/validation';
 import bcrypt from 'bcryptjs';
 
 // Prevenção contra Timing Attacks em buscas de usuários inexistentes
@@ -195,5 +195,66 @@ export async function register(formData: FormData) {
   } catch (err) {
     console.error('[AUTH_REGISTER_ERROR]', err);
     return { error: 'Erro ao processar seu cadastro. Verifique sua conexão e tente novamente.' };
+  }
+}
+
+// Implementação Corporativa de Coleta de Perfil Progressivo (Progressive Profiling)
+export async function completeProfile(formData: FormData) {
+  try {
+    const session = await getSession();
+    if (!session || !session.userId) {
+      return { error: 'Sessão expirada ou não autorizada.' };
+    }
+
+    const rawPhone = formData.get('phone');
+    const rawBirthDate = formData.get('birthDate');
+    const rawStreet = formData.get('addressStreet');
+    const rawNumber = formData.get('addressNumber');
+    const rawComplement = formData.get('addressComplement');
+    const rawNeighborhood = formData.get('addressNeighborhood');
+    const rawCity = formData.get('addressCity');
+    const rawState = formData.get('addressState');
+    const rawZip = formData.get('addressZip');
+
+    const parsed = completeProfileSchema.safeParse({
+      phone: rawPhone ?? undefined,
+      birthDate: rawBirthDate ?? undefined,
+      addressStreet: rawStreet ?? undefined,
+      addressNumber: rawNumber ?? undefined,
+      addressComplement: rawComplement || undefined,
+      addressNeighborhood: rawNeighborhood ?? undefined,
+      addressCity: rawCity ?? undefined,
+      addressState: rawState ?? undefined,
+      addressZip: rawZip ?? undefined,
+    });
+
+    if (!parsed.success) {
+      const firstError = (parsed.error as any)?.issues?.[0]?.message || (parsed.error as any)?.errors?.[0]?.message;
+      return { error: firstError || 'Verifique os campos de endereço preenchidos.' };
+    }
+
+    const data = parsed.data;
+
+    // Atualização Segura da Usuária com tipagem dinâmica para resiliência de cache de ORM
+    await (prisma as any).user.update({
+      where: { id: String(session.userId) },
+      data: {
+        phone: data.phone,
+        birthDate: new Date(data.birthDate),
+        addressStreet: data.addressStreet,
+        addressNumber: data.addressNumber,
+        addressComplement: data.addressComplement || null,
+        addressNeighborhood: data.addressNeighborhood,
+        addressCity: data.addressCity,
+        addressState: data.addressState,
+        addressZip: data.addressZip,
+        isProfileComplete: true, // Marca o onboarding premium como concluído!
+      },
+    });
+
+    return { success: true, message: 'Seu perfil exclusivo foi completado com sucesso!' };
+  } catch (err) {
+    console.error('[PROFILE_UPDATE_ERROR]', err);
+    return { error: 'Erro de rede ao salvar seu endereço. Tente novamente.' };
   }
 }

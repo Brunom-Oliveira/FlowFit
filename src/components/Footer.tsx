@@ -42,27 +42,25 @@ export async function Footer() {
 
   return (
     <footer className="footer" style={{ borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', marginTop: '4rem' }}>
-      <div className="container footer-content" style={{ padding: '4rem 1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '3rem' }}>
+      <div className="container footer-content" style={{ padding: '4rem 1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '3rem', maxWidth: '1200px', margin: '0 auto' }}>
         
-        {/* Marca & Identidade */}
-        <div className="footer-brand">
-          <div className="logo-container" style={{ alignItems: 'flex-start', marginBottom: '1rem' }}>
-            <Link href="/" className="logo" style={{ marginLeft: 0, textDecoration: 'none' }}>
+        {/* Coluna 1: Marca & Identidade */}
+        <div className="footer-brand" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '300px' }}>
+          <div className="logo-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <Link href="/" className="logo" style={{ textDecoration: 'none', fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--text-primary)', letterSpacing: '1px' }}>
               FLOWFIT
             </Link>
-            <span className="logo-slogan" style={{ marginLeft: '0.1em', fontSize: '0.7rem', letterSpacing: '2px', color: 'var(--accent)' }}>
+            <span className="logo-slogan" style={{ fontSize: '0.7rem', letterSpacing: '2px', color: 'var(--accent)', fontWeight: 'bold', marginTop: '0.2rem' }}>
               VISTA SUA FORÇA
             </span>
           </div>
-          <p className="footer-desc" style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: '1.5' }}>
+          <p className="footer-desc" style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: '1.6', margin: 0 }}>
             Moda fitness feminina de alta tecnologia. Conforto térmico, compressão inteligente e zero transparência para treinos de elite.
           </p>
         </div>
 
-        {/* Links Rápidos: Coleções */}
-        <div className="footer-links" style={{ display: 'flex', flexWrap: 'wrap', gap: '2.5rem', justifyContent: 'space-between' }}>
-          
-          <div className="link-column" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        {/* Coluna 2: Coleções Premium */}
+        <div className="link-column" style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
             <h4 style={{ fontSize: '0.95rem', color: 'var(--text-primary)', marginBottom: '0.5rem', fontWeight: 'bold' }}>Coleções Premium</h4>
             <Link href="/shop" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.85rem' }}>Leggings Sculpt</Link>
             <Link href="/shop" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.85rem' }}>Tops de Alta Sustentação</Link>
@@ -70,15 +68,16 @@ export async function Footer() {
             <Link href="/shop" style={{ color: 'var(--accent)', textDecoration: 'none', fontSize: '0.85rem', fontWeight: 'bold' }}>Outlet VIP (Até 50% OFF)</Link>
           </div>
 
-          <div className="link-column" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        {/* Coluna 3: Atendimento */}
+        <div className="link-column" style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
             <h4 style={{ fontSize: '0.95rem', color: 'var(--text-primary)', marginBottom: '0.5rem', fontWeight: 'bold' }}>Atendimento</h4>
             <Link href="/contato" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.85rem' }}>Fale Conosco</Link>
             <Link href="/trocas" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.85rem' }}>Trocas e Devoluções</Link>
             <Link href="/faq" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.85rem' }}>Perguntas Frequentes</Link>
           </div>
 
-          {/* 🌟 COLUNA DINÂMICA DE REDES SOCIAIS (CONECTADA AO ADMIN) */}
-          <div className="link-column social-column" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        {/* Coluna 4: Redes Sociais */}
+        <div className="link-column social-column" style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
             <h4 style={{ fontSize: '0.95rem', color: 'var(--accent)', marginBottom: '0.5rem', fontWeight: 'bold' }}>Siga a Força</h4>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', margin: 0, maxWidth: '200px' }}>
               Faça parte da nossa comunidade VIP e acompanhe os bastidores da produção.
@@ -134,8 +133,6 @@ export async function Footer() {
 
             </div>
           </div>
-
-        </div>
 
       </div>
 

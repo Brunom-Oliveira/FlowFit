@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useCallback, memo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { UIProduct as Product } from '../lib/products';
@@ -9,15 +9,20 @@ import { Check, ShoppingBag } from 'lucide-react';
 
 interface ProductCardProps {
   product: Product;
+  priority?: boolean; // Permite pré-carregamento agressivo de LCP para os primeiros itens da grade
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+// ⚡ OTIMIZAÇÃO DE FRONT-END PERFORMANCE: Memoização do Componente de Card
+// Em listagens com dezenas de itens, o clique em um botão rápido de sacola (add-to-cart)
+// não dispara a re-renderização em cascata de todos os outros cards inalterados.
+export const ProductCard = memo(function ProductCard({ product, priority = false }: ProductCardProps) {
   const { addToCart } = useCart();
   const [added, setAdded] = useState(false);
 
-  const handleAdd = (e: React.MouseEvent) => {
+  // ⚡ MEMOIZAÇÃO DE HANDLER: Preserva o Event Listener estável na memória
+  const handleAdd = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    e.stopPropagation(); // Previne abertura da PDP ao clicar no botão rápido
+    e.stopPropagation(); // Previne abertura da página de detalhes (PDP) ao clicar no botão rápido
     
     addToCart(product);
     setAdded(true);
@@ -26,7 +31,7 @@ export function ProductCard({ product }: ProductCardProps) {
     setTimeout(() => {
       setAdded(false);
     }, 1500);
-  };
+  }, [product, addToCart]);
 
   // Simulação inteligente de Escassez/Urgência focada em conversão (Alo Yoga / Lululemon vibes)
   const isBestSeller = product.category === 'Leggings' || product.category === 'Tops';
@@ -36,7 +41,7 @@ export function ProductCard({ product }: ProductCardProps) {
       href={`/product/${product.id}`} 
       className="product-card group"
       aria-label={`Comprar ${product.name} na categoria ${product.category}`}
-      style={{ display: 'block', outline: 'none', transition: 'transform 0.2s ease' }}
+      style={{ display: 'block', outline: 'none', transition: 'transform 0.2s ease', contentVisibility: 'auto' }}
     >
       <div 
         className="product-img-wrapper" 
@@ -53,6 +58,7 @@ export function ProductCard({ product }: ProductCardProps) {
           src={product.image} 
           alt={product.name} 
           fill
+          priority={priority}
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           className="product-img"
           style={{ 
@@ -76,6 +82,7 @@ export function ProductCard({ product }: ProductCardProps) {
         {/* Ação Rápida Otimizada para Mobile Thumb Zone */}
         <div className="product-action" style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', padding: '0.75rem', transform: 'translateY(100%)', transition: 'transform 0.3s ease', zIndex: 20 }}>
           <button 
+            type="button"
             className={`btn full-width ${added ? 'btn-success' : 'btn-primary'}`}
             onClick={handleAdd}
             style={{ 
@@ -115,4 +122,4 @@ export function ProductCard({ product }: ProductCardProps) {
       </div>
     </Link>
   );
-}
+});

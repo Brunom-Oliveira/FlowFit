@@ -2,13 +2,23 @@ import { getProductById, getProducts } from '../../../lib/products';
 import { ProductDetailsClient } from './ProductDetailsClient';
 import Link from 'next/link';
 import { Metadata } from 'next';
+import { cache } from 'react';
 
-export const dynamic = 'force-dynamic';
+// 🚀 OTIMIZAÇÃO PERFORMANCE ENTERPRISE: Incremental Static Regeneration (ISR)
+// Em vez de forçar SSR bruto a cada requisição (force-dynamic), mantemos a página em cache na Borda
+// e revalidamos a cada 1 hora (3600 segundos) sem penalizar o banco de dados.
+export const revalidate = 3600;
 
-// 🔍 SEO Dinâmico de Nível Enterprise (Audit Item P0)
+// ⚡ CACHING FRONT-END & BACK-END: Memoização nativa React/Next.js para chamadas de banco no mesmo escopo
+// Evita buscar o mesmo produto duas vezes (uma na Metadata e outra no Componente de Página)
+const getCachedProduct = cache(async (id: string) => {
+  return await getProductById(id);
+});
+
+// 🔍 SEO Dinâmico de Nível Enterprise com TTFB Otimizado
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const resolvedParams = await params;
-  const product = await getProductById(resolvedParams.id);
+  const product = await getCachedProduct(resolvedParams.id);
   
   if (!product) {
     return {
@@ -37,8 +47,10 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function ProductDetails({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
+  
+  // Paralelização limpa: Busca o produto (com deduplicação via cache de requisição) e o catálogo de cross-sell
   const [product, allProducts] = await Promise.all([
-    getProductById(resolvedParams.id),
+    getCachedProduct(resolvedParams.id),
     getProducts()
   ]);
 
@@ -72,7 +84,7 @@ export default async function ProductDetails({ params }: { params: Promise<{ id:
 
   return (
     <>
-      {/* Script JSON-LD Injetado no Server Component */}
+      {/* Script JSON-LD Injetado no Server Component sem bloquear a linha principal (Main Thread) */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

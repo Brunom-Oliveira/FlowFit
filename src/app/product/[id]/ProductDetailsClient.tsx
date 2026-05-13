@@ -1,11 +1,27 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { ArrowLeft, CheckCircle2, Sparkles, Ruler, Plus, ShoppingBag } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { ArrowLeft, CheckCircle2, Ruler, Plus, ShoppingBag } from 'lucide-react';
 import { UIProduct as Product } from '../../../lib/products';
 import { useCart } from '../../../context/CartContext';
+
+// 🚀 SPRINT 2: EXTRAÇÃO DE PACOTES (Code Splitting / Lazy Loading)
+// O módulo do Provador Virtual IA é importado estritamente sob demanda. O Next.js corta o seu código-fonte
+// em pedaços e baixa este bundle secundário em paralelo apenas se a compradora acionar o botão de expansão.
+const DynamicFittingRoomModal = dynamic(
+  () => import('./FittingRoomModal').then(m => m.FittingRoomModal),
+  { 
+    ssr: false, 
+    loading: () => (
+      <div style={{ padding: '1.5rem', textAlign: 'center', backgroundColor: 'var(--bg-secondary)', borderRadius: '12px', border: '1px dashed var(--border-color)', color: 'var(--accent)', fontSize: '0.85rem', fontWeight: 'bold' }}>
+        Carregando Motor IA Flowfit...
+      </div>
+    ) 
+  }
+);
 
 export function ProductDetailsClient({ product, allProducts }: { product: Product; allProducts?: Product[] }) {
   const router = useRouter();
@@ -16,13 +32,11 @@ export function ProductDetailsClient({ product, allProducts }: { product: Produc
   const [addedBundle, setAddedBundle] = useState(false);
   const [sizeError, setSizeError] = useState(false);
 
-  // Estados do Provador Virtual IA (Tarefa 8.3)
+  // Estado simples para controle de exibição sob demanda do Provador IA
   const [showFittingRoom, setShowFittingRoom] = useState(false);
-  const [weight, setWeight] = useState<number>(62);
-  const [height, setHeight] = useState<number>(165);
-  const [aiResult, setAiResult] = useState<{ ideal: string; available: boolean; altProduct: Product | null } | null>(null);
 
-  const handleAddToCart = () => {
+  // ⚡ MEMOIZAÇÃO DE HANDLERS
+  const handleAddToCart = useCallback(() => {
     if (!selectedSize && product.sizes.length > 0) {
       setSizeError(true);
       setTimeout(() => setSizeError(false), 4000);
@@ -36,21 +50,23 @@ export function ProductDetailsClient({ product, allProducts }: { product: Produc
     setTimeout(() => {
       setAdded(false);
     }, 3000);
-  };
+  }, [selectedSize, product, addToCart]);
 
-  // Cross-Sell Dinâmico (Tarefa 8.1)
-  const crossSellProduct = allProducts?.find(p => {
-    if (p.id === product.id) return false;
-    if (product.category.toLowerCase().includes('legging')) {
-      return p.category.toLowerCase().includes('top') || p.name.toLowerCase().includes('top');
-    }
-    if (product.category.toLowerCase().includes('top')) {
-      return p.category.toLowerCase().includes('legging') || p.name.toLowerCase().includes('legging');
-    }
-    return true;
-  }) || allProducts?.find(p => p.id !== product.id);
+  // 🚀 OTIMIZAÇÃO DE CPU & INP: Memoização de Cross-Sell
+  const crossSellProduct = useMemo(() => {
+    return allProducts?.find(p => {
+      if (p.id === product.id) return false;
+      if (product.category.toLowerCase().includes('legging')) {
+        return p.category.toLowerCase().includes('top') || p.name.toLowerCase().includes('top');
+      }
+      if (product.category.toLowerCase().includes('top')) {
+        return p.category.toLowerCase().includes('legging') || p.name.toLowerCase().includes('legging');
+      }
+      return true;
+    }) || allProducts?.find(p => p.id !== product.id);
+  }, [allProducts, product.id, product.category, product.name]);
 
-  const handleAddBundle = () => {
+  const handleAddBundle = useCallback(() => {
     if (!selectedSize && product.sizes.length > 0) {
       setSizeError(true);
       setTimeout(() => setSizeError(false), 4000);
@@ -68,38 +84,13 @@ export function ProductDetailsClient({ product, allProducts }: { product: Produc
     setTimeout(() => {
       router.push('/checkout');
     }, 600);
-  };
+  }, [selectedSize, product, crossSellProduct, addToCart, router]);
 
-  // Algoritmo Inteligente do Provador Virtual com Alerta de Indisponibilidade
-  const calculateRecommendation = () => {
-    let rec = 'M';
-    if (weight < 55) rec = 'P';
-    else if (weight >= 55 && weight < 68) rec = 'M';
-    else if (weight >= 68 && weight < 82) rec = 'G';
-    else rec = 'GG';
-
-    const isAvailable = product.sizes.includes(rec);
-    
-    // Se esgotado, varre o catálogo em busca de uma modelagem substituta perfeita
-    let altProd: Product | null = null;
-    if (!isAvailable && allProducts) {
-      altProd = allProducts.find(p => p.id !== product.id && p.sizes.includes(rec)) || null;
-    }
-
-    setAiResult({
-      ideal: rec,
-      available: isAvailable,
-      altProduct: altProd
-    });
-
-    if (isAvailable) {
-      setSelectedSize(rec);
-    }
-  };
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price);
-  };
+  // Callback de sincronização atômica entre o Provador IA e a Grade de Tamanhos
+  const handleSizeFromAi = useCallback((size: string) => {
+    setSelectedSize(size);
+    setSizeError(false);
+  }, []);
 
   return (
     <div className="container section product-details-page" style={{ paddingTop: '120px' }}>
@@ -109,8 +100,8 @@ export function ProductDetailsClient({ product, allProducts }: { product: Produc
 
       <div className="product-details-container">
         
-        {/* Lado Esquerdo - Galeria de Imagem */}
-        <div className="product-details-image" style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', width: '100%', aspectRatio: '3/4' }}>
+        {/* Lado Esquerdo - Galeria de Imagem com CLS Estabilizado */}
+        <div className="product-details-image" style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', width: '100%', aspectRatio: '3/4', contentVisibility: 'auto' }}>
           <Image 
             src={product.image} 
             alt={product.name} 
@@ -137,7 +128,7 @@ export function ProductDetailsClient({ product, allProducts }: { product: Produc
             <p>{product.description}</p>
           </div>
 
-          {/* 🌟 PROVADOR VIRTUAL IA (TAREFA 8.3) */}
+          {/* MÓDULO EXPANSÍVEL DO PROVADOR VIRTUAL IA (CODE SPLITTING SPRINT 2) */}
           <div style={{ marginBottom: '2rem' }}>
             <button 
               type="button" 
@@ -148,87 +139,19 @@ export function ProductDetailsClient({ product, allProducts }: { product: Produc
                 backgroundColor: 'rgba(229, 203, 179, 0.1)', 
                 color: 'var(--accent)', border: '1px solid rgba(229, 203, 179, 0.2)',
                 fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer',
-                marginBottom: '1rem'
+                marginBottom: '1rem', transition: 'all 0.2s ease'
               }}
             >
-              <Ruler size={16} /> Descobrir Meu Tamanho Ideal (Provador IA)
+              <Ruler size={16} /> {showFittingRoom ? 'Recolher Provador IA' : 'Descobrir Meu Tamanho Ideal (Provador IA)'}
             </button>
 
+            {/* Injeção condicional perfeita: O download do pacote de IA ocorre apenas na ativação do booleano */}
             {showFittingRoom && (
-              <div style={{ padding: '1.5rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '1.5rem', animation: 'fadeIn 0.3s ease' }}>
-                <h4 style={{ fontSize: '0.95rem', color: 'var(--text-primary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Sparkles size={16} style={{ color: 'var(--accent)' }} /> Algoritmo de Biotipo Flowfit
-                </h4>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginBottom: '1.5rem' }}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-                      <span>Peso Estimado:</span>
-                      <strong style={{ color: 'var(--accent)' }}>{weight} kg</strong>
-                    </div>
-                    <input 
-                      type="range" min="40" max="110" value={weight} 
-                      onChange={(e) => setWeight(Number(e.target.value))}
-                      style={{ width: '100%', accentColor: 'var(--accent)' }}
-                    />
-                  </div>
-
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-                      <span>Altura:</span>
-                      <strong style={{ color: 'var(--accent)' }}>{height} cm</strong>
-                    </div>
-                    <input 
-                      type="range" min="145" max="185" value={height} 
-                      onChange={(e) => setHeight(Number(e.target.value))}
-                      style={{ width: '100%', accentColor: 'var(--accent)' }}
-                    />
-                  </div>
-                </div>
-
-                <button 
-                  type="button" 
-                  onClick={calculateRecommendation}
-                  className="btn btn-outline full-width"
-                  style={{ padding: '0.6rem', fontSize: '0.85rem' }}
-                >
-                  Calcular Caimento Perfeito
-                </button>
-
-                {/* 🌟 Mapeamento visual condicional da IA (Estoque x Numeração Ideal) */}
-                {aiResult && (
-                  <div style={{ marginTop: '1.2rem', animation: 'fadeIn 0.3s ease' }}>
-                    {aiResult.available ? (
-                      <div style={{ padding: '0.75rem', backgroundColor: 'rgba(34, 197, 94, 0.1)', borderRadius: '6px', border: '1px solid #22c55e', color: '#22c55e', fontSize: '0.85rem', textAlign: 'center', fontWeight: 'bold' }}>
-                        ✓ Recomendamos o tamanho: {aiResult.ideal} (Disponível na loja!)
-                      </div>
-                    ) : (
-                      <div style={{ padding: '1rem', backgroundColor: 'rgba(239, 68, 68, 0.05)', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)', textAlign: 'left' }}>
-                        <div style={{ color: '#ef4444', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.4rem' }}>
-                          ⚠️ Numeração Ideal {aiResult.ideal} Esgotada
-                        </div>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.8rem', lineHeight: '1.4' }}>
-                          O nosso sistema calculou que o seu caimento sob medida para este modelo seria o tamanho <strong>{aiResult.ideal}</strong>, mas a grade está temporariamente indisponível.
-                        </p>
-                        
-                        {aiResult.altProduct && (
-                          <div style={{ marginTop: '0.5rem', paddingTop: '0.6rem', borderTop: '1px solid var(--border-color)' }}>
-                            <span style={{ fontSize: '0.75rem', color: '#22c55e', fontWeight: 'bold', display: 'block', marginBottom: '0.3rem' }}>
-                              💡 Peça similar em estoque no tamanho {aiResult.ideal}:
-                            </span>
-                            <a 
-                              href={`/product/${aiResult.altProduct.id}`}
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', color: 'var(--accent)', fontSize: '0.85rem', fontWeight: 'bold', textDecoration: 'none' }}
-                            >
-                              Conhecer {aiResult.altProduct.name} →
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+              <DynamicFittingRoomModal 
+                product={product} 
+                allProducts={allProducts} 
+                onSelectSize={handleSizeFromAi} 
+              />
             )}
           </div>
 
@@ -278,9 +201,9 @@ export function ProductDetailsClient({ product, allProducts }: { product: Produc
             </button>
           </div>
           
-          {/* 🌟 MÓDULO DE CROSS-SELL PREMIUM (TAREFA 8.1) */}
+          {/* MÓDULO DE CROSS-SELL PREMIUM */}
           {crossSellProduct && (
-            <div style={{ padding: '1.5rem', backgroundColor: 'rgba(229, 203, 179, 0.05)', borderRadius: '12px', border: '2px dashed var(--border-color)', marginBottom: '2rem' }}>
+            <div style={{ padding: '1.5rem', backgroundColor: 'rgba(229, 203, 179, 0.05)', borderRadius: '12px', border: '2px dashed var(--border-color)', marginBottom: '2rem', contentVisibility: 'auto' }}>
               <span style={{ display: 'inline-block', padding: '0.2rem 0.6rem', backgroundColor: 'rgba(229, 203, 179, 0.2)', color: 'var(--accent)', fontSize: '0.7rem', fontWeight: 'bold', borderRadius: '4px', marginBottom: '1rem', textTransform: 'uppercase' }}>
                 Look Completo com Desconto
               </span>

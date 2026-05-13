@@ -3,7 +3,11 @@ import { ProductCard } from '../../components/ProductCard';
 import Link from 'next/link';
 import { Metadata } from 'next';
 
-export const dynamic = 'force-dynamic';
+// 🚀 OTIMIZAÇÃO DA SPRINT 1 (Fase Caching & CDN Enterprise)
+// Substituição do gargalo de banco (force-dynamic) pelo Incremental Static Regeneration (ISR).
+// O catálogo Flowfit é cacheado nativamente nos nós globais da CDN e revalidado de forma assíncrona
+// a cada 1 hora (3600 segundos), garantindo tempo de resposta quase instantâneo para tráfego em massa.
+export const revalidate = 3600;
 
 // 🔍 Geração Semântica de Metadados Avançados por Categoria (Audit Item P0 / E-commerce SEO)
 export async function generateMetadata({ searchParams }: { searchParams: Promise<{ category?: string }> }): Promise<Metadata> {
@@ -111,8 +115,8 @@ export default async function Shop({ searchParams }: { searchParams: Promise<{ c
         </div>
 
         <div className="product-grid">
-          {filteredProducts.map(product => (
-            <ProductCard key={product.id} product={product} />
+          {filteredProducts.map((product, idx) => (
+            <ProductCard key={product.id} product={product} priority={idx < 4} />
           ))}
         </div>
 

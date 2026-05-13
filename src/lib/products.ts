@@ -64,7 +64,10 @@ function getFallbackMockProducts(): UIProduct[] {
   ];
 }
 
-// 🚀 Busca Paginada Otimizada com Blindagem de Driver de Conexão Estática na Vercel
+// 🚀 SPRINT 3: OTIMIZAÇÃO SEVERA DE QUERIES PRISMA E REDE (Eliminação de Overfetching)
+// Em vez de baixar todas as colunas de tabelas auxiliares via include bruto,
+// projetamos unicamente os campos estritamente necessários via select enxuto.
+// Reduz a latência de rede do Supabase e o consumo de memória de serialização JSON.
 export async function getProducts(options?: { page?: number; limit?: number; categoryId?: string }): Promise<UIProduct[]> {
   const page = options?.page || 1;
   const limit = options?.limit || 40; 
@@ -78,10 +81,22 @@ export async function getProducts(options?: { page?: number; limit?: number; cat
       take: limit,
       skip,
       orderBy: { createdAt: 'desc' },
-      include: {
-        category: true,
-        variants: true,
-        images: true,
+      // Projeção cirúrgica de colunas alvo (Especialista Banco de Dados VIP)
+      select: {
+        id: true,
+        name: true,
+        price: true,
+        description: true,
+        category: {
+          select: { name: true }
+        },
+        images: {
+          select: { url: true },
+          take: 1 // Na listagem do catálogo, baixa apenas a primeira miniatura, ignorando galeria extra
+        },
+        variants: {
+          select: { size: true } // Extrai estritamente as numerações, ignorando colunas internas de estoque
+        }
       }
     });
 
@@ -143,10 +158,21 @@ export async function getProductById(id: string): Promise<UIProduct | null> {
           { slug: id }
         ]
       },
-      include: {
-        category: true,
-        variants: true,
-        images: true,
+      // Projeção completa limpa para PDP (Product Details Page)
+      select: {
+        id: true,
+        name: true,
+        price: true,
+        description: true,
+        category: {
+          select: { name: true }
+        },
+        images: {
+          select: { url: true }
+        },
+        variants: {
+          select: { size: true }
+        }
       }
     });
 

@@ -1,0 +1,79 @@
+name: FlowFit QA Enterprise Pipeline
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  static-analysis:
+    name: 🕵️ Static Analysis & Linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: TypeScript Compiler Check (Exit Code 0)
+        run: npx tsc --noEmit
+
+      - name: ESLint
+        run: npm run lint
+
+  security-audit:
+    name: 🔐 Security & PCI Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: NPM Audit
+        run: npm audit --audit-level=high
+        
+  unit-tests:
+    name: 🧪 Unit & Integration Tests (Jest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+      - name: Install Dependencies
+        run: npm ci
+      - name: Run Jest Tests with Coverage
+        run: npm run test:coverage
+        env:
+          DATABASE_URL: "postgresql://test:test@localhost:5432/test_db"
+          JWT_SECRET: "test_secret"
+
+  e2e-tests:
+    name: 🤖 E2E Flow (Playwright)
+    runs-on: ubuntu-latest
+    needs: [static-analysis, unit-tests] # Só roda E2E se os Unit passarem
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+      
+      - name: Install Dependencies
+        run: npm ci
+        
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+        
+      - name: Run Playwright Tests
+        run: npx playwright test
+        env:
+          BASE_URL: "http://localhost:3000"
+          DATABASE_URL: "postgresql://test:test@localhost:5432/test_db"
+          
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 10

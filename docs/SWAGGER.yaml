@@ -1,0 +1,84 @@
+openapi: 3.0.3
+info:
+  title: FlowFit Payment & Webhook API
+  description: Documentação interna da API de processamento transacional e captura de pagamentos.
+  version: 1.0.0
+servers:
+  - url: https://api.flowfit.com/v1
+    description: Production Server
+
+paths:
+  /api/checkout/intent:
+    post:
+      summary: Criação de Intenção de Pagamento
+      description: Inicia uma sessão de pagamento baseada no carrinho do usuário validado.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - items
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      quantity:
+                        type: integer
+                      size:
+                        type: string
+      responses:
+        '200':
+          description: Intent criado com sucesso. Retorna o secretKey do Stripe para injeção no Front-end.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  clientSecret:
+                    type: string
+                  orderId:
+                    type: string
+        '400':
+          description: Erro de Validação de Estoque (Race Condition)
+        '401':
+          description: Não autorizado (Sessão Inválida)
+
+  /api/webhooks/stripe:
+    post:
+      summary: Endpoint Recebedor de Eventos Stripe (Conciliação Ativa)
+      description: Rota exposta para a Stripe avisar sobre aprovação/falha de pagamentos (succeeded, failed, refunded).
+      parameters:
+        - in: header
+          name: stripe-signature
+          required: true
+          schema:
+            type: string
+          description: Assinatura HMAC SHA256 do payload cru
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Recebido e Conciliado. Em caso de Idempotência retornará HTTP 200 com status `ignored_idempotent`.
+        '400':
+          description: Falha na assinatura criptográfica
+        '500':
+          description: Falha de Banco de Dados. Irá forçar o Exponential Backoff da Stripe.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
